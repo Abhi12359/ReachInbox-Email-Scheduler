@@ -49,12 +49,16 @@ app.use(express.urlencoded({ extended: true }));
 // MYSQL DATABASE
 // ----------------------------------------------------
 
+
 const db = mysql.createPool({
   host: requiredEnv("MYSQL_HOST"),
-  port: Number(process.env.MYSQL_PORT || 3306),
+  port: Number(process.env.MYSQL_PORT || 4000),
   user: requiredEnv("MYSQL_USER"),
   password: requiredEnv("MYSQL_PASSWORD"),
   database: requiredEnv("MYSQL_DATABASE"),
+  ssl: {
+    minVersion: "TLSv1.2",
+  },
   waitForConnections: true,
   connectionLimit: 10,
 });
