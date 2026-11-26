@@ -2,11 +2,13 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "ReachInbox Email Scheduler Backend",
+  "main": "src/server.ts",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "worker": "tsx watch src/worker.ts"
+    "start": "tsx src/server.ts",
+    "worker": "tsx src/worker.ts",
+    "worker:dev": "tsx watch src/worker.ts"
   },
   "keywords": [],
   "author": "",
