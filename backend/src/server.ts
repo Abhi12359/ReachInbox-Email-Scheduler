@@ -50,7 +50,6 @@ app.use(express.urlencoded({ extended: true }));
 // MYSQL DATABASE
 // ----------------------------------------------------
 
-
 const db = mysql.createPool({
   host: requiredEnv("MYSQL_HOST"),
   port: Number(process.env.MYSQL_PORT || 4000),
@@ -491,7 +490,6 @@ app.get("/api/auth/google/callback", async (req, res) => {
       }
     }
 
-    // Automatically save the Gmail account used for Google login.
     await saveGmailAccount(
       userId,
       googleId,
@@ -521,11 +519,6 @@ app.get("/api/auth/google/callback", async (req, res) => {
     );
   }
 });
-
-// ----------------------------------------------------
-// CONNECT GMAIL - FOR EMAIL/PASSWORD USERS
-// ----------------------------------------------------
-
 
 // ----------------------------------------------------
 // CONNECT GMAIL - FOR EMAIL/PASSWORD USERS
@@ -1037,6 +1030,91 @@ app.delete(
       return res.status(500).json({
         success: false,
         message: "Could not delete email",
+      });
+    }
+  }
+);
+
+// ----------------------------------------------------
+// DELETE SCHEDULED EMAIL - NEW FIX
+// ----------------------------------------------------
+
+app.delete(
+  "/api/emails/:id",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const authReq = req as AuthRequest;
+      const emailId = Number(req.params.id);
+      const userId = authReq.user!.userId;
+
+      if (!Number.isInteger(emailId) || emailId <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid email ID",
+        });
+      }
+
+      // Check that the scheduled email belongs to this user.
+      const [rows]: any = await db.execute(
+        `SELECT id FROM emails
+         WHERE id = ?
+           AND user_id = ?
+           AND status = 'scheduled'
+         LIMIT 1`,
+        [emailId, userId]
+      );
+
+      if (!rows.length) {
+        return res.status(404).json({
+          success: false,
+          message: "Scheduled email not found",
+        });
+      }
+
+      // Find the corresponding BullMQ job.
+      const job = await emailQueue.getJob(`email-${emailId}`);
+
+      if (job) {
+        const state = await job.getState();
+
+        // Do not delete an email while the worker is sending it.
+        if (state === "active") {
+          return res.status(409).json({
+            success: false,
+            message: "Email is currently being processed. Please try again.",
+          });
+        }
+
+        await job.remove();
+      }
+
+      // Delete the scheduled email from MySQL.
+      const [result]: any = await db.execute(
+        `DELETE FROM emails
+         WHERE id = ?
+           AND user_id = ?
+           AND status = 'scheduled'`,
+        [emailId, userId]
+      );
+
+      if (!result.affectedRows) {
+        return res.status(404).json({
+          success: false,
+          message: "Scheduled email could not be deleted",
+        });
+      }
+
+      return res.json({
+        success: true,
+        message: "Scheduled email deleted successfully",
+      });
+    } catch (error) {
+      console.error("Delete scheduled email error:", error);
+
+      return res.status(500).json({
+        success: false,
+        message: "Could not delete scheduled email",
       });
     }
   }
