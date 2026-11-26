@@ -27,7 +27,7 @@ const REQUIRED_GMAIL_SCOPE =
   "https://www.googleapis.com/auth/gmail.send";
 
 // ----------------------------------------------------
-// MYSQL CONNECTION
+// MYSQL CONNECTION - TiDB TLS ENABLED
 // ----------------------------------------------------
 
 const db = mysql.createPool({
@@ -36,6 +36,11 @@ const db = mysql.createPool({
   user: requiredEnv("MYSQL_USER"),
   password: requiredEnv("MYSQL_PASSWORD"),
   database: requiredEnv("MYSQL_DATABASE"),
+
+  ssl: {
+    minVersion: "TLSv1.2",
+  },
+
   waitForConnections: true,
   connectionLimit: 10,
 });
@@ -103,7 +108,7 @@ function decryptRefreshToken(
 }
 
 // ----------------------------------------------------
-// CREATE OAUTH CLIENT AND VERIFY GMAIL SCOPE
+// GOOGLE OAUTH CLIENT AND SCOPE VERIFICATION
 // ----------------------------------------------------
 
 async function createAuthorizedGmailClient(
@@ -118,7 +123,6 @@ async function createAuthorizedGmailClient(
     refresh_token: refreshToken,
   });
 
-  // Obtain an access token using the stored refresh token.
   const { token } = await oauthClient.getAccessToken();
 
   if (!token) {
@@ -127,14 +131,12 @@ async function createAuthorizedGmailClient(
     );
   }
 
-  // Verify the actual permissions granted to this token.
   const tokenInfo = await oauthClient.getTokenInfo(token);
-
   const grantedScopes = tokenInfo.scopes || [];
 
   if (!grantedScopes.includes(REQUIRED_GMAIL_SCOPE)) {
     throw new Error(
-      "GMAIL_SCOPE_MISSING: Connected Gmail account does not have gmail.send permission. Disconnect Gmail, revoke old ReachInbox access in Google Account, and reconnect with Gmail send permission."
+      "GMAIL_SCOPE_MISSING: Gmail send permission is missing. Reconnect Gmail with send permission."
     );
   }
 
@@ -144,7 +146,7 @@ async function createAuthorizedGmailClient(
 }
 
 // ----------------------------------------------------
-// SEND EMAIL USING OWNER'S CONNECTED GMAIL
+// SEND EMAIL USING CONNECTED GMAIL
 // ----------------------------------------------------
 
 async function sendUsingGmail(
@@ -290,7 +292,6 @@ async function processEmail(job: Job): Promise<void> {
     );
   }
 
-  // Send only through this email owner's connected Gmail.
   await sendUsingGmail(email);
 
   const [updateResult]: any = await db.execute(
