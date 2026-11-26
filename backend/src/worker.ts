@@ -32,7 +32,7 @@ const REQUIRED_GMAIL_SCOPE =
 
 const db = mysql.createPool({
   host: requiredEnv("MYSQL_HOST"),
-  port: Number(process.env.MYSQL_PORT || 3306),
+  port: Number(process.env.MYSQL_PORT || 4000),
   user: requiredEnv("MYSQL_USER"),
   password: requiredEnv("MYSQL_PASSWORD"),
   database: requiredEnv("MYSQL_DATABASE"),
