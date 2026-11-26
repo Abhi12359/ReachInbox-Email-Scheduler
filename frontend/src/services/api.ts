@@ -111,7 +111,7 @@ export const deleteScheduledEmailAPI = (
   id: number | string
 ) =>
   apiRequest(
-    `/api/emails/scheduled/${encodeURIComponent(String(id))}`,
+    `/api/emails/${encodeURIComponent(String(id))}`,
     {
       method: "DELETE",
     }
